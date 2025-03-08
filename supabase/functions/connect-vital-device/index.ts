@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { VitalClient } from 'https://esm.sh/@tryvital/vital-node@3.3.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,11 +17,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
-
-    const vitalClient = new VitalClient({
-      apiKey: Deno.env.get('VITAL_API_KEY')!,
-      environment: 'sandbox'
-    })
 
     // Get user ID and provider from request
     const { user_id, provider } = await req.json()
@@ -44,13 +38,34 @@ serve(async (req) => {
       })
       user.vital_user_id = data.vital_user_id
     }
-
     // Create connection link
-    const link = await vitalClient.link.create({
-      userId: user.vital_user_id,
-      provider
-    })
+    const response = await fetch("https://api.sandbox.tryvital.io/v2/link/token", {
+      method: "POST",
+      headers: {
+        "x-vital-api-key": `${Deno.env.get("VITAL_API_KEY")}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: user.vital_user_id,
+        provider
+      })
+    });
 
+    const link = await response.json();
+    if(!response.ok){
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: link,
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    )
+    }
+   
     // Store device connection
     const { error: deviceError } = await supabase
       .from('user_devices')
@@ -60,7 +75,7 @@ serve(async (req) => {
         provider,
         status: 'pending',
         metadata: {
-          link_id: link.id
+          link_token: link.link_token
         }
       })
 
@@ -69,7 +84,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        link_token: link.link_token,
+        link: link,
         vital_user_id: user.vital_user_id
       }),
       { 
