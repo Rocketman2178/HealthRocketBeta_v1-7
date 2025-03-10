@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import {VitalClient,VitalEnvironment} from "https://esm.sh/@tryvital/vital-node@3.1.216";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -20,7 +22,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-   
+    const vitalClient = new VitalClient({
+      apiKey: Deno.env.get('VITAL_API_KEY')!,
+      environment: VitalEnvironment.Sandbox
+    })
 
     //GET USER ID FROM REQUEST
     const { user_id } = await req.json()
@@ -36,36 +41,12 @@ serve(async (req) => {
     if (userError) throw userError
 
     // CREATE VITAL USER 
-    const response = await fetch("https://api.sandbox.tryvital.io/v2/user", {
-      method: "POST",
-      headers: {
-        "x-vital-api-key": `${Deno.env.get("VITAL_API_KEY")}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        client_user_id: user_id,
-        email:user?.email
-      })
-    });
-
-    const vitalUser = await response.json();
-    // CHECK IF THE RESPONSE IS OKAY
-    if(!response.ok){
-
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: vitalUser
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500 
-        }
-      )
-
-    }
-    
+        
+        const vitalUser = await vitalClient.user.create({
+          clientUserId: user_id,
+          email: user.email
+        })
+   
     // UPDATE USER WITH VITAL ID 
     const { error: updateError } = await supabase
       .from('users')
