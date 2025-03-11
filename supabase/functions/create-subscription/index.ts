@@ -12,7 +12,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // HANDLE CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -23,7 +23,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Get the authorization header from the request
+    // GET THE AUTHERIZATION HEADER FROM THE REQUEST
     const authHeader = req.headers.get('Authorization')?.split(' ')[1]
     if (!authHeader) {
       throw new Error('No authorization header')
