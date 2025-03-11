@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { VitalClient } from 'https://esm.sh/@tryvital/vital-node@3.3.1'
+import {VitalClient, VitalEnvironment } from "https://esm.sh/@tryvital/vital-node@3.1.216";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,9 +21,8 @@ serve(async (req) => {
 
     const vitalClient = new VitalClient({
       apiKey: Deno.env.get('VITAL_API_KEY')!,
-      environment: 'sandbox'
+      environment: VitalEnvironment.Sandbox
     })
-
     // Get user ID and provider from request
     const { user_id, provider } = await req.json()
     if (!user_id || !provider) {
@@ -45,11 +44,11 @@ serve(async (req) => {
       user.vital_user_id = data.vital_user_id
     }
 
-    // Create connection link
-    const link = await vitalClient.link.create({
-      userId: user.vital_user_id,
-      provider
-    })
+      // Create connection link
+      const link = await vitalClient.link.token({
+        userId: user.vital_user_id,
+        provider
+      })
 
     // Store device connection
     const { error: deviceError } = await supabase
@@ -60,7 +59,7 @@ serve(async (req) => {
         provider,
         status: 'pending',
         metadata: {
-          link_id: link.id
+          link_token: link.link_token
         }
       })
 
@@ -69,7 +68,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        link_token: link.link_token,
+        link: link,
         vital_user_id: user.vital_user_id
       }),
       { 
